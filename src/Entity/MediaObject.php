@@ -1,5 +1,4 @@
 <?php
-
 // api/src/Entity/MediaObject.php
 namespace App\Entity;
 
@@ -54,13 +53,14 @@ class MediaObject
     private ?int $id = null;
 
     #[ApiProperty(iri: 'http://schema.org/contentUrl')]
-    #[Groups(['media_object:read'])]
+    #[Groups(["media_object:read", "user:read" ])]
     public ?string $contentUrl = null;
 
     /**
      * @Vich\UploadableField(mapping="media_object", fileNameProperty="filePath")
      */
     #[Assert\NotNull(groups: ['media_object_create'])]
+    #[Groups(["media_object_create"])]
     public ?File $file = null;
 
     /**
@@ -71,5 +71,29 @@ class MediaObject
     public function getId(): ?int
     {
         return $this->id;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getContentUrl(): ?string
+    {
+        return $this->contentUrl;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getFilePath(): ?string
+    {
+        return $this->filePath;
+    }
+
+    /**
+     * @return File|null
+     */
+    public function getFile(): ?File
+    {
+        return $this->file;
     }
 }

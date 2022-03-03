@@ -5,10 +5,13 @@ namespace App\Entity;
 use ApiPlatform\Core\Annotation\ApiProperty;
 use ApiPlatform\Core\Annotation\ApiResource;
 use App\Repository\UserRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Annotation\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: '`user`')]
@@ -35,10 +38,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
+    #[Groups(["comment:read"])]
     private $id;
 
     #[ORM\Column(type: 'string', length: 180, unique: true)]
-    #[Groups(["user:read", "user:write", "user:put"])]
+    #[Groups(["user:read", "user:write", "user:put", "art:read"])]
     private $email;
 
     #[ORM\Column(type: 'json')]
@@ -54,9 +58,57 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups(["user:read", "user:write", "user:put"])]
     public ?MediaObject $image = null;
 
+    #[ORM\ManyToMany(targetEntity: self::class, inversedBy: 'followers')]
+    #[Groups(["user:read", "user:write", "user:put"])]
+    private $followed;
+
+    #[ORM\ManyToMany(targetEntity: self::class, mappedBy: 'followed')]
+    #[Groups(["user:read", "user:write", "user:put"])]
+    private $followers;
+
+    #[ORM\OneToMany(mappedBy: 'artist', targetEntity: Art::class)]
+    #[Groups(["user:read", "user:write", "user:put"])]
+    private $art;
+
+    #[ORM\Column(type: 'string', length: 255)]
+    #[Groups(["user:read", "user:write", "user:put", "art:read","comment:read"])]
+    #[Assert\NotBlank]
+    private $pseudo;
+
+    #[ORM\ManyToMany(targetEntity: Art::class, mappedBy: 'likes')]
+    #[Groups(["user:read", "user:write", "user:put"])]
+    private $likes;
+
+    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Comment::class)]
+    #[Groups(["user:read", "user:write", "user:put"])]
+    private $comments;
+
+    public function __construct()
+    {
+        $this->art = new ArrayCollection();
+        $this->followed = new ArrayCollection();
+        $this->followers = new ArrayCollection();
+        $this->likes = new ArrayCollection();
+        $this->comments = new ArrayCollection();
+    }
+
     public function getId(): ?int
     {
         return $this->id;
+    }
+
+
+    public function getPseudo() : ?string
+    {
+        return $this->pseudo;
+    }
+
+    /**
+     * @param mixed $pseudo
+     */
+    public function setPseudo(string $pseudo): self
+    {
+        return $this->pseudo = $pseudo;
     }
 
     public function getEmail(): ?string
@@ -141,5 +193,150 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         // If you store any temporary, sensitive data on the user, clear it here
         // $this->plainPassword = null;
+    }
+
+    /**
+     * @return Collection<int, Art>
+     */
+    public function getArt(): Collection
+    {
+        return $this->art;
+    }
+
+    public function addArt(Art $art): self
+    {
+        if (!$this->art->contains($art)) {
+            $this->art[] = $art;
+            $art->setArtist($this);
+        }
+
+        return $this;
+    }
+
+    public function removeArt(Art $art): self
+    {
+        if ($this->art->removeElement($art)) {
+            // set the owning side to null (unless already changed)
+            if ($art->getArtist() === $this) {
+                $art->setArtist(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param ArrayCollection $art
+     */
+    public function setArt(ArrayCollection $art): void
+    {
+        $this->art = $art;
+    }
+
+    /**
+     * @return Collection|self[]
+     */
+    public function getFollowed(): Collection
+    {
+        return $this->followed;
+    }
+
+    public function addFollowed(self $followed): self
+    {
+        if (!$this->followed->contains($followed)) {
+            $this->followed[] = $followed;
+        }
+
+        return $this;
+    }
+
+    public function removeFollowed(self $followed): self
+    {
+        $this->followed->removeElement($followed);
+
+        return $this;
+    }
+    /**
+     * @return Collection|self[]
+     */
+    public function getFollowers(): Collection
+    {
+        return $this->followers;
+    }
+
+    public function addFollowers(self $followers): self
+    {
+        if (!$this->followers->contains($followers)) {
+            $this->followers[] = $followers;
+            $followers->addFollowed($this);
+        }
+
+        return $this;
+    }
+
+    public function removeFollowers(self $followers): self
+    {
+        if ($this->followers->removeElement($followers)) {
+            $followers->removeFollowed($this);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Art>
+     */
+    public function getLikes(): Collection
+    {
+        return $this->likes;
+    }
+
+    public function addLike(Art $like): self
+    {
+        if (!$this->likes->contains($like)) {
+            $this->likes[] = $like;
+            $like->addLike($this);
+        }
+
+        return $this;
+    }
+
+    public function removeLike(Art $like): self
+    {
+        if ($this->likes->removeElement($like)) {
+            $like->removeLike($this);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Comment>
+     */
+    public function getComments(): Collection
+    {
+        return $this->comments;
+    }
+
+    public function addComment(Comment $comment): self
+    {
+        if (!$this->comments->contains($comment)) {
+            $this->comments[] = $comment;
+            $comment->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeComment(Comment $comment): self
+    {
+        if ($this->comments->removeElement($comment)) {
+            // set the owning side to null (unless already changed)
+            if ($comment->getUser() === $this) {
+                $comment->setUser(null);
+            }
+        }
+
+        return $this;
     }
 }
