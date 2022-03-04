@@ -1,14 +1,23 @@
-# GitHub Action for Symfony
-name: Testing Symfony
+# GitHub Action for Symfony with MySQL
+name: Testing Symfony with MySQL
 on: [push, pull_request]
 jobs:
   symfony:
-    name: Symfony (PHP ${{ matrix.php-versions }} on ${{ matrix.operating-system }})
-    runs-on: ${{ matrix.operating-system }}
+    name: Symfony (PHP ${{ matrix.php-versions }})
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:latest
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: false
+          MYSQL_ROOT_PASSWORD: symfony
+          MYSQL_DATABASE: symfony
+        ports:
+          - 3306/tcp
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
     strategy:
       fail-fast: false
       matrix:
-        operating-system: [ubuntu-latest, windows-latest, macos-latest]
         php-versions: ['7.4', '8.0', '8.1']
     steps:
       - name: Checkout
@@ -20,8 +29,11 @@ jobs:
         with:
           php-version: ${{ matrix.php-versions }}
           tools: phpunit-bridge
-          extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite
+          extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, mysql
           coverage: xdebug
+
+      - name: Start mysql service
+        run: sudo systemctl start mysql
 
       - name: Get composer cache directory
         id: composer-cache
@@ -38,6 +50,14 @@ jobs:
 
       - name: Install Composer dependencies
         run: composer install --no-progress --prefer-dist --optimize-autoloader
+
+      - name: Run Migration
+        run: |
+          composer require --dev symfony/orm-pack
+          php bin/console doctrine:schema:update --force || echo "No migrations found or schema update failed"
+          php bin/console doctrine:migrations:migrate || echo "No migrations found or migration failed"
+        env:
+          DATABASE_URL: mysql://root:symfony@127.0.0.1:${{ job.services.mysql.ports['3306'] }}/symfony
 
       - name: Install PHPUnit
         run: simple-phpunit install
