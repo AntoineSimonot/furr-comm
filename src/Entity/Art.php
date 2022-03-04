@@ -43,6 +43,10 @@ class Art
 
     #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'art')]
     #[Groups(["art:read", "art:write", "art:put"])]
+    #[ORM\JoinColumn(nullable: true, onDelete: "CASCADE")]
+    /**
+     * @ORM\JoinColumn (onDelete="CASCADE", nullable=true)
+     */
     private $artist;
 
     #[ORM\ManyToOne(targetEntity: MediaObject::class)]

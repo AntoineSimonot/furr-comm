@@ -1,0 +1,4 @@
+App\Entity\MediaObject:
+  media_{1..100}:
+
+

@@ -50,6 +50,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     #[ORM\Column(type: 'string')]
     #[Groups(["user:write"])]
+    #[Assert\NotBlank]
     private $password;
 
     #[ORM\ManyToOne(targetEntity: MediaObject::class)]
@@ -68,6 +69,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     #[ORM\OneToMany(mappedBy: 'artist', targetEntity: Art::class)]
     #[Groups(["user:read", "user:write", "user:put"])]
+    #[ORM\JoinColumn(onDelete: "cascade")]
+    #[ORM\JoinColumn(nullable: true)]
     private $art;
 
     #[ORM\Column(type: 'string', length: 255)]
@@ -83,6 +86,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups(["user:read", "user:write", "user:put"])]
     private $comments;
 
+    #[ORM\OneToMany(mappedBy: 'artist', targetEntity: Commission::class)]
+    #[Groups(["user:read", "user:write", "user:put"])]
+    private $artist_commissions;
+
+    #[ORM\OneToMany(mappedBy: 'client', targetEntity: Commission::class)]
+    #[Groups(["user:read", "user:write", "user:put"])]
+    private $client_commissions;
+
     public function __construct()
     {
         $this->art = new ArrayCollection();
@@ -90,6 +101,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->followers = new ArrayCollection();
         $this->likes = new ArrayCollection();
         $this->comments = new ArrayCollection();
+        $this->artist_commissions = new ArrayCollection();
+        $this->client_commissions = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -108,7 +121,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     public function setPseudo(string $pseudo): self
     {
-        return $this->pseudo = $pseudo;
+        $this->pseudo = $pseudo;
+
+        return $this;
+
     }
 
     public function getEmail(): ?string
@@ -334,6 +350,66 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             // set the owning side to null (unless already changed)
             if ($comment->getUser() === $this) {
                 $comment->setUser(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Commission>
+     */
+    public function getArtistCommissions(): Collection
+    {
+        return $this->artist_commissions;
+    }
+
+    public function addArtistCommissions(Commission $artist_commissions): self
+    {
+        if (!$this->artist_commissions->contains($artist_commissions)) {
+            $this->artist_commissions[] = $artist_commissions;
+            $artist_commissions->setArtist($this);
+        }
+
+        return $this;
+    }
+
+    public function removeArtistCommissions(Commission $artist_commissions): self
+    {
+        if ($this->artist_commissions->removeElement($artist_commissions)) {
+            // set the owning side to null (unless already changed)
+            if ($artist_commissions->getArtist() === $this) {
+                $artist_commissions->setArtist(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Commission>
+     */
+    public function getClientCommissions(): Collection
+    {
+        return $this->client_commissions;
+    }
+
+    public function addClientCommission(Commission $clientCommission): self
+    {
+        if (!$this->client_commissions->contains($clientCommission)) {
+            $this->client_commissions[] = $clientCommission;
+            $clientCommission->setClient($this);
+        }
+
+        return $this;
+    }
+
+    public function removeClientCommission(Commission $clientCommission): self
+    {
+        if ($this->client_commissions->removeElement($clientCommission)) {
+            // set the owning side to null (unless already changed)
+            if ($clientCommission->getClient() === $this) {
+                $clientCommission->setClient(null);
             }
         }
 

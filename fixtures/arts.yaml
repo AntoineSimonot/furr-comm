@@ -1,0 +1,5 @@
+App\Entity\Art:
+  art_{1..100}:
+    title: <sentence(4)>
+    description: <text()>
+    artist: '@user_*'
